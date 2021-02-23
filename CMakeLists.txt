@@ -14,6 +14,8 @@ include(CPM)
 include(zlib)
 include(mbedtls)
 include(ixwebsocket)
+include(nlohmann_json)
+include(fmt)
 
 set(CMAKE_FOLDER "")
 
@@ -23,6 +25,8 @@ add_executable(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     ixwebsocket
+    nlohmann_json
+    fmt
 )
 
 # Set Visual Studio startup project

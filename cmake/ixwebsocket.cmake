@@ -2,7 +2,7 @@
 
 CPMAddPackage(
     NAME ixwebsocket
-    GITHUB_REPOSITORY machinezone/IXWebSocket
+    GIT_REPOSITORY https://github.com/machinezone/IXWebSocket
     VERSION 11.0.8
     DOWNLOAD_ONLY ON
 )

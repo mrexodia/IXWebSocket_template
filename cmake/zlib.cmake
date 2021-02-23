@@ -2,7 +2,7 @@
 
 CPMAddPackage(
     NAME zlib
-    GITHUB_REPOSITORY madler/zlib
+    GIT_REPOSITORY https://github.com/madler/zlib
     VERSION 1.2.11
     DOWNLOAD_ONLY ON
 )
