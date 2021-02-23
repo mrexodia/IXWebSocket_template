@@ -1,85 +1,103 @@
-// Based on: https://github.com/machinezone/IXWebSocket#hello-world (BSD-3-Clause License)
-
-#include <ixwebsocket/IXNetSystem.h>
-#include <ixwebsocket/IXWebSocket.h>
 #include <iostream>
 #include <atomic>
+#include <stdexcept>
+
+#include <ixwebsocket/IXNetSystem.h>
+#include <ixwebsocket/IXHttpClient.h>
+#include <ixwebsocket/IXWebSocket.h>
+
+#include <fmt/core.h>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+struct pci_device
+{
+	std::string device_id;
+	std::string description;
+	std::string vendor_id;
+	std::string vendor;
+};
+
+// partial specialization (full specialization works too)
+namespace nlohmann
+{
+template<>
+struct adl_serializer<pci_device>
+{
+	// Source: https://stackoverflow.com/a/217605/1806760
+	// trim from start (in place)
+	static void ltrim(std::string& s)
+	{
+		s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+			return !std::isspace(ch);
+		}));
+	}
+
+	static void to_json(json& j, const pci_device& d)
+	{
+		j = json
+		{
+			{ "id", d.device_id },
+			{ "desc", d.description },
+			{ "venID", d.vendor_id },
+			{ "venDesc", d.vendor },
+		};
+	}
+
+	static void from_json(const json& j, pci_device& d)
+	{
+		j.at("id").get_to(d.device_id);
+		j.at("desc").get_to(d.description);
+		j.at("venID").get_to(d.vendor_id);
+		j.at("venDesc").get_to(d.vendor);
+
+		// for some reason the server returns a space at the beginning for some fields, trim them
+		ltrim(d.description);
+		ltrim(d.vendor);
+	}
+};
+}
+
+std::vector<pci_device> query_device_information(const std::string& vendor_query, const std::string& device_query)
+{
+	ix::HttpClient httpClient;
+	auto args = httpClient.createRequest();
+	auto url = fmt::format("https://www.pcilookup.com/api.php?action=search&vendor={}&device={}", vendor_query, device_query);
+	
+	auto response = httpClient.get(url, args);
+	if (response->errorCode != ix::HttpErrorCode::Ok)
+		throw std::runtime_error(response->errorMsg);
+
+	if (response->statusCode != 200)
+		throw std::runtime_error(fmt::format("http error {}", response->statusCode));
+
+	auto jbody = json::parse(response->body);
+	return jbody.get<std::vector<pci_device>>();
+}
+
+void example()
+{
+	
+}
 
 int main()
 {
 	// Required on Windows
 	ix::initNetSystem();
 
-	// Our websocket object
-	ix::WebSocket webSocket;
-
-	// TLS options
-	ix::SocketTLSOptions tlsOptions;
-#ifndef _WIN32
-	// Currently system CAs are not supported on non-Windows platforms with mbedtls
-	tlsOptions.caFile = "NONE";
-#endif // _WIN32
-	webSocket.setTLSOptions(tlsOptions);
-
-	std::string url("wss://echo.websocket.org");
-	webSocket.setUrl(url);
-
-	std::cout << "Connecting to " << url << "..." << std::endl;
-
-	// To synchrously wait for connection to be established, use an atomic boolean
-	std::atomic_bool connectionReady;
-
-	// Setup a callback to be fired (in a background thread, watch out for race conditions !)
-	// when a message or an event (open, close, error) is received
-	webSocket.setOnMessageCallback([&webSocket, &connectionReady](const ix::WebSocketMessagePtr& msg)
+	try
 	{
-		if (msg->type == ix::WebSocketMessageType::Message)
+		auto devices = query_device_information("1630", "ff81");
+		for (const auto& device : devices)
 		{
-			std::cout << "Received message: " << msg->str << std::endl;
-			std::cout << "> " << std::flush;
-		}
-		else if (msg->type == ix::WebSocketMessageType::Open)
-		{
-			std::cout << "Connection established" << std::endl;
-			connectionReady = true;
-		}
-		else if (msg->type == ix::WebSocketMessageType::Error)
-		{
-			std::cout << "Connection error: " << msg->errorInfo.reason << std::endl;
-			connectionReady = true;
+			// Serialize to json + print
+			json jdevice(device);
+			fmt::print("{}", jdevice.dump(2));
 		}
 	}
-	);
-
-	// Now that our callback is setup, we can start our background thread and receive messages
-	webSocket.start();
-
-	// Wait for the connection to be ready (either successfully or with an error)
-	while (!connectionReady)
+	catch (std::exception& x)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		fmt::print("Exception: {}", x.what());
 	}
-
-	// Handle connection error/timeout
-	if (webSocket.getReadyState() != ix::ReadyState::Open)
-	{
-		return EXIT_FAILURE;
-	}
-
-	// Send an initial message to the server (default to TEXT mode)
-	webSocket.send("Hello from IXWebSocket!");
-
-	// Allow the user to play around
-	while (true)
-	{
-		std::string text;
-		std::getline(std::cin, text);
-
-		if (text.empty())
-			break;
-
-		webSocket.send(text);
-	}
-
-	return EXIT_SUCCESS;
 }
