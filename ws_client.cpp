@@ -4,11 +4,14 @@
 #include <ixwebsocket/IXWebSocket.h>
 #include <iostream>
 #include <atomic>
+#include <mbedtls/debug.h>
 
 int main()
 {
 	// Required on Windows
 	ix::initNetSystem();
+
+	mbedtls_debug_set_threshold(4);
 
 	// Our websocket object
 	ix::WebSocket webSocket;
