@@ -1,0 +1,23 @@
+[cmake]
+minimum = "3.15"
+cmkr-include = "cmake/cmkr.cmake"
+
+[project]
+name = "IXWebSocket_template"
+description = "Simple template for IXWebSocket (websocket and http client/server library for C++) based on CPM and cmkr."
+cmake-after = """
+set(CMAKE_FOLDER "Dependencies")
+include(cmake/CPM.cmake)
+include(cmake/zlib.cmake)
+include(cmake/mbedtls.cmake)
+include(cmake/ixwebsocket.cmake)
+include(cmake/fmt.cmake)
+include(cmake/nlohmann_json.cmake)
+unset(CMAKE_FOLDER)
+"""
+
+[target.rest_client]
+type = "executable"
+sources = ["src/rest_client.cpp"]
+link-libraries = ["ixwebsocket", "nlohmann_json", "fmt"]
+compile-features = ["cxx_std_11"]

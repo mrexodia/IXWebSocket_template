@@ -76,11 +76,6 @@ std::vector<pci_device> query_device_information(const std::string& vendor_query
 	return jbody.get<std::vector<pci_device>>();
 }
 
-void example()
-{
-	
-}
-
 int main()
 {
 	// Required on Windows
